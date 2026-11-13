@@ -8,14 +8,14 @@ import sys
 import zipfile
 
 root = Path(__file__).resolve().parent
-out = root.parent / 'outputs' / 'telegram-scheduler-v4.0'
+out = root.parent / 'outputs' / 'telegram-scheduler-v4.1'
 out.mkdir(parents=True, exist_ok=True)
 binary = root / 'dist' / 'TelegramOfferScheduler'
 assert (binary / 'TelegramOfferScheduler.exe').is_file(), 'Build the application first'
 
 licenses = root / 'licenses'
 licenses.mkdir(exist_ok=True)
-for package in ['Telethon', 'PySide6-Essentials', 'shiboken6', 'pyaes', 'rsa', 'pyasn1', 'pyinstaller']:
+for package in ['Telethon', 'PySide6-Essentials', 'shiboken6', 'pyaes', 'rsa', 'pyasn1', 'qrcode', 'pyinstaller']:
     dist = importlib.metadata.distribution(package)
     for rel in dist.files or []:
         if '.dist-info' in str(rel) and (any(s in str(rel).lower() for s in ['license', 'copying', 'notice']) or rel.name == 'METADATA'):
@@ -43,12 +43,12 @@ source_files += list((root / 'screenshots').glob('*.png'))
 source_files += [p for p in licenses.rglob('*') if p.is_file()]
 source_files += [root / 'validation-results.json']
 
-source_zip = out / 'TelegramOfferScheduler-v4.0-Source.zip'
+source_zip = out / 'TelegramOfferScheduler-v4.1-Source.zip'
 with zipfile.ZipFile(source_zip, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
     for path in source_files:
         archive.write(path, 'telegram-scheduler/' + path.relative_to(root).as_posix())
 
-binary_zip = out / 'TelegramOfferScheduler-v4.0-Windows-x64.zip'
+binary_zip = out / 'TelegramOfferScheduler-v4.1-Windows-x64.zip'
 with zipfile.ZipFile(binary_zip, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
     for path in binary.rglob('*'):
         if path.is_file():

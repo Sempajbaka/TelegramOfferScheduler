@@ -6,7 +6,7 @@ import uuid
 import zipfile
 from pathlib import Path, PurePosixPath
 
-VERSION = '4.0'
+VERSION = '4.1'
 
 
 def install_archive(archive, base, progress=lambda value: None):

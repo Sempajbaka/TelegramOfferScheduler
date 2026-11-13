@@ -7,11 +7,12 @@ from logging.handlers import RotatingFileHandler
 import sys
 import threading
 import time
+import qrcode
 from pathlib import Path
 from datetime import datetime
 
 from PySide6.QtCore import Qt, QThread, Signal, QDateTime, QLockFile, QTimeZone, QTimer, QTime
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtGui import QFont, QFontDatabase, QImage, QPixmap
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QFormLayout, QLineEdit, QPushButton, QLabel, QTabWidget, QTableWidget, QTableWidgetItem,
     QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox, QDateTimeEdit, QCheckBox,
@@ -128,13 +129,14 @@ class Window(QMainWindow):
         self.busy = False
         self.loaded = False
         self.auth_stage = None
+        self.qr_dialog = None
         self.queue_rows = []
         self.cleanup_rows = []
         self.cleanup_display_rows = []
         self.cleanup_selected_ids = set()
         self.plan = []
         self.changes = []
-        self.setWindowTitle('Telegram • Предложение о сотрудничестве — 4.0')
+        self.setWindowTitle('Telegram • Предложение о сотрудничестве — 4.1')
         self.resize(1200, 850)
         root = QWidget()
         self.setCentralWidget(root)
@@ -495,7 +497,7 @@ class Window(QMainWindow):
         self.button('Стереть данные…', self.purge_profile, profile_row)
         layout.addLayout(profile_row)
         label = QLabel('API ID и API Hash вводятся один раз на вкладке 8 «Общие настройки».\n'
-                       'Телефон, код и 2FA вводятся только здесь. Сессия и API hash сохраняются с защитой Windows DPAPI.\n'
+                       'Рекомендуется вход по QR-коду: он не требует SMS или кода в служебном чате. Сессия и API hash сохраняются через Windows DPAPI или macOS Keychain.\n'
                        'У каждого профиля свои чаты, шаблоны и планы. При переключении отправки не запускаются.')
         label.setWordWrap(True)
         layout.addWidget(label)
@@ -536,6 +538,7 @@ class Window(QMainWindow):
         layout.addLayout(form)
         layout.addWidget(self.test_mode)
         self.button('Сохранить настройки', self.save, layout)
+        self.button('Войти по QR-коду (рекомендуется)', self.connect_qr_account, layout)
         self.button('Войти / подключить сохранённую сессию', self.connect_account, layout)
         self.button('Повторить ввод кода / пароля 2FA', self.auth_input, layout)
         layout.addWidget(QLabel('Повтор поддерживается только при совместимой библиотеке и Telegram Premium.\n'
@@ -649,7 +652,7 @@ class Window(QMainWindow):
             check.setData(Qt.ItemDataRole.UserRole, row['id'])
             self.cleanup_table.setItem(row_number, 0, check)
             count = row.get('participants_count')
-            values = [row['title'], KIND_NAMES.get(row.get('kind'), row.get('kind', '')), 
+            values = [row['title'], KIND_NAMES.get(row.get('kind'), row.get('kind', '')),
                       self.format_time(row['last_activity']) if row.get('last_activity') else 'Нет даты',
                       str(count) if count is not None else '—', ', '.join(row.get('folder_names', [])), str(row['id'])]
             for column, value in enumerate(values, 1):
@@ -1104,6 +1107,55 @@ class Window(QMainWindow):
             return
         self.run('connect', '', '', self.phone.text().strip(), self.pause.value())
 
+    def connect_qr_account(self):
+        if not self.save():
+            return
+        if not self.api_config:
+            QMessageBox.warning(self, 'API', 'Один раз сохраните API ID и API Hash во вкладке 8 «Общие настройки».')
+            self.tabs.setCurrentIndex(7)
+            return
+        self.run('connect_qr', '', '', self.pause.value())
+
+    @staticmethod
+    def qr_pixmap(url, size=320):
+        code = qrcode.QRCode(version=None, box_size=1, border=4)
+        code.add_data(url)
+        code.make(fit=True)
+        matrix = code.get_matrix()
+        width = len(matrix)
+        image = QImage(width, width, QImage.Format.Format_RGB32)
+        image.fill(0xffffffff)
+        for y, row in enumerate(matrix):
+            for x, dark in enumerate(row):
+                if dark:
+                    image.setPixel(x, y, 0xff000000)
+        return QPixmap.fromImage(image).scaled(
+            size, size, Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.FastTransformation)
+
+    def show_qr_login(self, url):
+        if self.qr_dialog:
+            self.qr_dialog.close()
+        dialog = QDialog(self)
+        dialog.setWindowTitle('Вход в Telegram по QR-коду')
+        dialog.setModal(False)
+        layout = QVBoxLayout(dialog)
+        instruction = QLabel('На телефоне откройте Telegram → Настройки → Устройства → Подключить устройство, затем отсканируйте код.')
+        instruction.setWordWrap(True)
+        layout.addWidget(instruction)
+        image = QLabel()
+        image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        image.setPixmap(self.qr_pixmap(url))
+        layout.addWidget(image)
+        layout.addWidget(QLabel('Не закрывайте это окно до завершения входа. QR-код действует недолго.'))
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        buttons.rejected.connect(self.cancel)
+        buttons.rejected.connect(dialog.close)
+        layout.addWidget(buttons)
+        dialog.resize(420, 470)
+        self.qr_dialog = dialog
+        dialog.show()
+
     def auth_input(self):
         if self.auth_stage not in ('code', 'password'):
             QMessageBox.information(self, 'Вход', 'Сначала нажмите «Войти».')
@@ -1320,6 +1372,9 @@ class Window(QMainWindow):
 
     def result(self, result):
         self.busy = False
+        if self.qr_dialog and result.get('auth') != 'qr':
+            self.qr_dialog.close()
+            self.qr_dialog = None
         self.operation_progress.setRange(0, max(1, self.progress_state.get('total', 0)))
         self.operation_progress.setValue(self.progress_state.get('completed', 0))
         self.progress_label.setText(('Остановлено: ' + result['error']) if 'error' in result else 'Операция завершена. Подробности — в журнале и соответствующем списке.')
@@ -1356,6 +1411,10 @@ class Window(QMainWindow):
         elif result.get('profile_switched'):
             self.profiles.select(self.pending_profile)
             self.load_profile_view()
+        elif result.get('auth') == 'qr':
+            self.auth_stage = 'qr'
+            self.show_qr_login(result['qr_url'])
+            QTimer.singleShot(0, lambda: self.run('wait_qr_login'))
         elif result.get('auth') in ('code', 'password'):
             self.auth_stage = result['auth']
             self.auth_input()

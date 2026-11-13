@@ -38,6 +38,9 @@ def error_description(exc):
         'SessionExpiredError': 'Сессия истекла. Войдите в аккаунт заново.',
         'PhoneCodeInvalidError': 'Неверный код Telegram. Повторите ввод кода.',
         'PhoneCodeExpiredError': 'Код истёк. Повторите вход с номером телефона.',
+        'PhoneNumberInvalidError': 'Номер телефона неверен. Используйте международный формат, например +79991234567.',
+        'PhoneNumberBannedError': 'Telegram заблокировал вход для этого номера. Обратитесь в поддержку Telegram.',
+        'PhoneNumberFloodError': 'Telegram временно ограничил запросы кода для этого номера. Не повторяйте попытки и попробуйте позже или войдите по QR-коду.',
         'PasswordHashInvalidError': 'Неверный пароль 2FA. Повторите ввод.',
         'ApiIdInvalidError': 'Telegram отклонил общие API ID/API Hash. Проверьте вкладку настроек.',
         'PremiumAccountRequiredError': 'Для этой операции нужен Telegram Premium.',
@@ -87,6 +90,7 @@ class Engine:
         self.completed = 0
         self.total = 0
         self.progress_unit = 'подтверждено'
+        self.qr_login_request = None
 
     def report_progress(self, **fields):
         self.progress({'completed': self.completed, 'total': self.total, 'unit': self.progress_unit, **fields})
@@ -219,6 +223,38 @@ class Engine:
             raise
         self.phone_hash = sent.phone_code_hash
         return {'auth': 'code'}
+
+    async def connect_qr(self, api_id, api_hash, pause):
+        """Connect an existing session or start Telegram's code-free QR login."""
+        result = await self.connect(api_id, api_hash, '', pause, restore_only=True)
+        if not result.get('session_expired'):
+            return result
+        self.qr_login_request = await self.network(
+            lambda: self.client.qr_login(), 'Создание QR-кода для входа')
+        expires = getattr(self.qr_login_request, 'expires', None)
+        return {
+            'auth': 'qr',
+            'qr_url': self.qr_login_request.url,
+            'qr_expires': int(expires.timestamp()) if expires else 0,
+        }
+
+    async def wait_qr_login(self):
+        if not self.qr_login_request:
+            raise ValueError('QR-код не создан. Нажмите «Войти по QR-коду» ещё раз.')
+        request = self.qr_login_request
+        expires = getattr(request, 'expires', None)
+        timeout = max(5, min(120, (expires.timestamp() - time.time()) + 2)) if expires else 60
+        try:
+            await self.network(lambda: request.wait(timeout=timeout),
+                               'Ожидание сканирования QR-кода', timeout=timeout + 2)
+        except errors.SessionPasswordNeededError:
+            self.qr_login_request = None
+            return {'auth': 'password'}
+        except TimeoutError:
+            self.qr_login_request = None
+            raise ValueError('Срок действия QR-кода истёк. Создайте новый QR-код и отсканируйте его сразу.')
+        self.qr_login_request = None
+        return await self.account()
 
     async def login(self, code=None, password=None):
         await self.sleep(max(0, float(self.store.meta('wait_until') or 0) - time.time()))

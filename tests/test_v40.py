@@ -3,7 +3,7 @@ os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 
 import threading
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace as NS
@@ -63,6 +63,28 @@ class CrossPlatformTests(unittest.TestCase):
             self.assertEqual(run.call_count, 2)
 
 
+class QrLoginTests(unittest.IsolatedAsyncioTestCase):
+    async def test_qr_login_connects_without_phone_or_sms(self):
+        with TemporaryDirectory() as folder:
+            engine = Engine(Path(folder), lambda _: None, threading.Event())
+            qr = NS(url='tg://login?token=local-test',
+                    expires=datetime.now(timezone.utc) + timedelta(seconds=60),
+                    wait=AsyncMock(return_value=NS(id=123)))
+            engine.connect = AsyncMock(return_value={'session_expired': True})
+            engine.client = NS(qr_login=AsyncMock(return_value=qr))
+            engine.account = AsyncMock(return_value={'auth': 'ready', 'account_id': 123})
+            try:
+                started = await engine.connect_qr('123', 'a' * 32, 1)
+                self.assertEqual(started['auth'], 'qr')
+                self.assertEqual(started['qr_url'], qr.url)
+                ready = await engine.wait_qr_login()
+                self.assertEqual(ready['auth'], 'ready')
+                qr.wait.assert_awaited_once()
+                engine.account.assert_awaited_once()
+            finally:
+                engine.store.db.close()
+
+
 class CleanupGuiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -92,6 +114,11 @@ class CleanupGuiTests(unittest.TestCase):
             finally:
                 window.close()
                 self.app.processEvents()
+
+    def test_qr_code_is_rendered_locally(self):
+        pixmap = Window.qr_pixmap('tg://login?token=local-test')
+        self.assertFalse(pixmap.isNull())
+        self.assertGreaterEqual(pixmap.width(), 300)
 
     def test_confirmation_uses_durable_ids_not_visual_order(self):
         with TemporaryDirectory() as folder:

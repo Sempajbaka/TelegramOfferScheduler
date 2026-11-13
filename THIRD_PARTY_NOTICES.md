@@ -14,6 +14,7 @@ Package metadata and license files shipped by the installed distributions are co
 | pyaes | 1.6.1 | https://github.com/ricmoo/pyaes |
 | rsa | 4.9.1 | https://github.com/sybrenstuvel/python-rsa |
 | pyasn1 | 0.6.4 | https://github.com/pyasn1/pyasn1 |
+| qrcode | 8.2 | https://github.com/lincolnloop/python-qrcode |
 | PyInstaller bootloader | 6.22.3 | https://github.com/pyinstaller/pyinstaller |
 
 The installed PySide6 distribution declares `LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only` in its metadata. See the Qt licensing and source distribution pages: https://www.qt.io/licensing/open-source-lgpl-obligations and https://download.qt.io/official_releases/ . Original notices remain applicable. This document does not relicense third-party software.
