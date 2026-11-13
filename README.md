@@ -1,10 +1,10 @@
-# Telegram Offer Scheduler v4.1
+# Telegram Offer Scheduler v4.2
 
 Доработанная версия существующего Windows-приложения для размещения вашего предложения о сотрудничестве в разрешённых Telegram-группах. Банковских офферов и материалов РКО в комплекте нет. Работает самостоятельно через MTProto, без OpenAI API и расхода токенов ChatGPT.
 
 ## Запуск
 
-1. Распакуйте весь TelegramOfferScheduler-v4.1-Windows-x64.zip.
+1. Распакуйте весь TelegramOfferScheduler-v4.2-Windows-x64.zip.
 2. Запустите TelegramOfferScheduler.exe. Сохраните рядом папку _internal. Python не нужен.
 3. Один раз сохраните общие API ID/API Hash с https://my.telegram.org на вкладке 8. Затем на вкладке 1 используйте рекомендуемый вход по QR-коду: Telegram на телефоне → Настройки → Устройства → Подключить устройство. Номер телефона и SMS для этого способа не требуются.
 4. Оставьте тестовый режим включённым и выберите один собственный тестовый чат.
@@ -16,7 +16,7 @@
 
 ### macOS
 
-Скачайте `TelegramOfferScheduler-v4.1-macOS.dmg`, перенесите `TelegramOfferScheduler.app` в «Программы» и запустите. Сборка имеет ad-hoc подпись, но не нотаризована Apple: при первом запуске может понадобиться клик правой кнопкой → «Открыть». Сессия Telegram и API-реквизиты хранятся в macOS Keychain, остальные данные — в `~/Library/Application Support/TelegramOfferScheduler`.
+Скачайте `TelegramOfferScheduler-v4.2-macOS.dmg`, перенесите `TelegramOfferScheduler.app` в «Программы» и запустите. Сборка имеет ad-hoc подпись, но не нотаризована Apple: при первом запуске может понадобиться клик правой кнопкой → «Открыть». Сессия Telegram и API-реквизиты хранятся в macOS Keychain, остальные данные — в `~/Library/Application Support/TelegramOfferScheduler`.
 
 Перенос защищённой Windows DPAPI-сессии на Mac не поддерживается: на macOS нужно один раз войти в аккаунт заново.
 

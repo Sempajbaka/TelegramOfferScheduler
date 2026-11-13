@@ -136,7 +136,7 @@ class Window(QMainWindow):
         self.cleanup_selected_ids = set()
         self.plan = []
         self.changes = []
-        self.setWindowTitle('Telegram • Предложение о сотрудничестве — 4.1')
+        self.setWindowTitle('Telegram • Предложение о сотрудничестве — 4.2')
         self.resize(1200, 850)
         root = QWidget()
         self.setCentralWidget(root)
@@ -1070,7 +1070,8 @@ class Window(QMainWindow):
         if not self.worker.initialized.is_set():
             QMessageBox.information(self, 'Запуск', 'Дождитесь завершения запуска приложения.')
             return
-        if method not in ('connect', 'login', 'switch_profile') and not self.loaded:
+        auth_methods = ('connect', 'connect_qr', 'wait_qr_login', 'login', 'switch_profile')
+        if method not in auth_methods and not self.loaded:
             QMessageBox.information(self, 'Вход', 'Сначала подключите аккаунт на вкладке 1.')
             return
         if method in ('prepare', 'resume', 'queues', 'clear_progress', 'prepare_updates', 'pending_changes') and not args[0]:
@@ -1080,7 +1081,7 @@ class Window(QMainWindow):
         self.progress_started = time.monotonic()
         self.progress_state = {}
         self.operation_progress.setRange(0, 0)
-        if method == 'connect':
+        if method in ('connect', 'connect_qr'):
             self.loaded = False
         self.enable_editing(False)
         self.status.setText('Выполняется… Прогресс во вкладке «Журнал». Можно остановить.')
@@ -1417,6 +1418,8 @@ class Window(QMainWindow):
             QTimer.singleShot(0, lambda: self.run('wait_qr_login'))
         elif result.get('auth') in ('code', 'password'):
             self.auth_stage = result['auth']
+            if result['auth'] == 'code' and result.get('code_delivery'):
+                QMessageBox.information(self, 'Код запрошен', result['code_delivery'])
             self.auth_input()
         elif result.get('auth') == 'ready':
             self.profiles = Profiles(self.root_directory)

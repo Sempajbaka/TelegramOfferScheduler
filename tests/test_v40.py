@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
-from telethon import functions, types
+from telethon import errors, functions, types
 
 from app import Window
 from dialog_tools import dialog_matches, sort_dialogs
@@ -64,6 +64,28 @@ class CrossPlatformTests(unittest.TestCase):
 
 
 class QrLoginTests(unittest.IsolatedAsyncioTestCase):
+    async def test_phone_migration_retries_code_on_the_new_data_center(self):
+        class MigratingClient:
+            def __init__(self):
+                self.session = NS(dc_id=1)
+                self.calls = 0
+
+            async def send_code_request(self, _phone):
+                self.calls += 1
+                if self.calls == 1:
+                    raise errors.PhoneMigrateError(request=None, capture=1)
+                return NS(phone_code_hash='after-migration', type=NS())
+
+        with TemporaryDirectory() as folder:
+            engine = Engine(Path(folder), lambda _: None, threading.Event())
+            engine.client = MigratingClient()
+            try:
+                sent = await engine.request_login_code('+12025550123')
+                self.assertEqual(sent.phone_code_hash, 'after-migration')
+                self.assertEqual(engine.client.calls, 2)
+            finally:
+                engine.store.db.close()
+
     async def test_qr_login_connects_without_phone_or_sms(self):
         with TemporaryDirectory() as folder:
             engine = Engine(Path(folder), lambda _: None, threading.Event())
@@ -119,6 +141,20 @@ class CleanupGuiTests(unittest.TestCase):
         pixmap = Window.qr_pixmap('tg://login?token=local-test')
         self.assertFalse(pixmap.isNull())
         self.assertGreaterEqual(pixmap.width(), 300)
+
+    def test_qr_login_is_allowed_before_account_is_loaded(self):
+        with TemporaryDirectory() as folder:
+            window = Window(Path(folder))
+            try:
+                window.worker.initialized.set()
+                window.loaded = False
+                with patch.object(window.worker, 'submit') as submit:
+                    window.run('connect_qr', '', '', 2)
+                submit.assert_called_once_with('connect_qr', '', '', 2)
+            finally:
+                window.busy = False
+                window.close()
+                self.app.processEvents()
 
     def test_confirmation_uses_durable_ids_not_visual_order(self):
         with TemporaryDirectory() as folder:

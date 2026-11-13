@@ -41,6 +41,7 @@ def error_description(exc):
         'PhoneNumberInvalidError': 'Номер телефона неверен. Используйте международный формат, например +79991234567.',
         'PhoneNumberBannedError': 'Telegram заблокировал вход для этого номера. Обратитесь в поддержку Telegram.',
         'PhoneNumberFloodError': 'Telegram временно ограничил запросы кода для этого номера. Не повторяйте попытки и попробуйте позже или войдите по QR-коду.',
+        'PhoneMigrateError': 'Telegram перенаправил вход в другой дата-центр, но повторный запрос не завершился. Попробуйте ещё раз или используйте QR-вход.',
         'PasswordHashInvalidError': 'Неверный пароль 2FA. Повторите ввод.',
         'ApiIdInvalidError': 'Telegram отклонил общие API ID/API Hash. Проверьте вкладку настроек.',
         'PremiumAccountRequiredError': 'Для этой операции нужен Telegram Premium.',
@@ -217,12 +218,40 @@ class Engine:
         await self.sleep(max(0, float(self.store.meta('wait_until') or 0) - time.time()))
         self.phone = phone
         try:
-            sent = await self.network(lambda: self.client.send_code_request(phone), 'Запрос кода')
+            sent = await self.request_login_code(phone)
         except errors.FloodWaitError as exc:
             self.store.meta('wait_until', time.time() + exc.seconds + 1)
             raise
         self.phone_hash = sent.phone_code_hash
-        return {'auth': 'code'}
+        return {'auth': 'code', 'code_delivery': self.code_delivery(sent)}
+
+    async def request_login_code(self, phone):
+        """Request a code once more after Telethon switches to the phone's data center."""
+        try:
+            return await self.network(lambda: self.client.send_code_request(phone), 'Запрос кода')
+        except errors.PhoneMigrateError as exc:
+            new_dc = exc.new_dc
+            current_dc = getattr(getattr(self.client, 'session', None), 'dc_id', None)
+            self.log(f'Telegram перенаправил авторизацию в дата-центр {new_dc}; повторяем запрос кода')
+            if current_dc != new_dc:
+                await self.network(lambda: self.client._switch_dc(new_dc),
+                                   'Переключение дата-центра авторизации',
+                                   cancellable=False, timeout=30)
+            return await self.network(lambda: self.client.send_code_request(phone),
+                                      'Повторный запрос кода после смены дата-центра')
+
+    @staticmethod
+    def code_delivery(sent):
+        kind = type(getattr(sent, 'type', None)).__name__
+        descriptions = {
+            'SentCodeTypeApp': 'Telegram принял запрос и отправил код в служебный чат «Telegram» на уже подключённом устройстве. Это не SMS и не чат «Verification Codes».',
+            'SentCodeTypeSms': 'Telegram принял запрос и выбрал доставку кода по SMS.',
+            'SentCodeTypeCall': 'Telegram принял запрос и выбрал звонок с кодом.',
+            'SentCodeTypeFlashCall': 'Telegram принял запрос и выбрал проверочный звонок.',
+            'SentCodeTypeMissedCall': 'Telegram принял запрос и выбрал проверку пропущенным звонком.',
+            'SentCodeTypeEmailCode': 'Telegram принял запрос и отправил код на привязанную электронную почту.',
+        }
+        return descriptions.get(kind, 'Telegram принял запрос кода. Проверьте служебный чат «Telegram» на подключённых устройствах.')
 
     async def connect_qr(self, api_id, api_hash, pause):
         """Connect an existing session or start Telegram's code-free QR login."""

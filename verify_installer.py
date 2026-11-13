@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 root = Path(__file__).resolve().parent
-setup = root / 'dist' / 'TelegramOfferScheduler-4.1-Setup.exe'
+setup = root / 'dist' / 'TelegramOfferScheduler-4.2-Setup.exe'
 with TemporaryDirectory(prefix='tgos-install-test-') as folder:
     temporary = Path(folder)
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen')
@@ -18,7 +18,7 @@ with TemporaryDirectory(prefix='tgos-install-test-') as folder:
     result = subprocess.run([str(setup), '--verify-package', str(base)], env=env, timeout=120, capture_output=True)
     assert result.returncode == 0, result.stderr.decode(errors='replace')
     assert (base / '3.9' / 'keep.txt').read_text() == 'preserved'
-    application = base / '4.1' / 'TelegramOfferScheduler.exe'
+    application = base / '4.2' / 'TelegramOfferScheduler.exe'
     assert application.exists()
     result = subprocess.run([str(application), '--data-dir', str(temporary/'data'), '--smoke-test'],
                             env=env, timeout=60, capture_output=True)
