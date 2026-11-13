@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace as NS
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
@@ -143,18 +143,24 @@ class CleanupGuiTests(unittest.TestCase):
         self.assertGreaterEqual(pixmap.width(), 300)
 
     def test_qr_login_is_allowed_before_account_is_loaded(self):
-        with TemporaryDirectory() as folder:
-            window = Window(Path(folder))
-            try:
-                window.worker.initialized.set()
-                window.loaded = False
-                with patch.object(window.worker, 'submit') as submit:
-                    window.run('connect_qr', '', '', 2)
-                submit.assert_called_once_with('connect_qr', '', '', 2)
-            finally:
-                window.busy = False
-                window.close()
-                self.app.processEvents()
+        initialized = threading.Event()
+        initialized.set()
+        submit = Mock()
+        window = object.__new__(Window)
+        window.busy = False
+        window.loaded = False
+        window.worker = NS(initialized=initialized, options={}, submit=submit)
+        window.progress_started = 0
+        window.progress_state = {}
+        window.operation_progress = Mock()
+        window.enable_editing = Mock()
+        window.status = Mock()
+        window.pause = NS(value=lambda: 2)
+        window.create_pause = NS(value=lambda: 2)
+        window.test_mode = NS(isChecked=lambda: True)
+        window.margin = NS(value=lambda: 60)
+        window.run('connect_qr', '', '', 2)
+        submit.assert_called_once_with('connect_qr', '', '', 2)
 
     def test_confirmation_uses_durable_ids_not_visual_order(self):
         with TemporaryDirectory() as folder:
