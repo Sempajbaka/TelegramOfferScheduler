@@ -1,0 +1,2 @@
+Telethon==1.45.0
+PySide6-Essentials==6.12.0

@@ -1,0 +1,95 @@
+name: Build Windows and macOS
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Run tests
+        run: python -m unittest discover -s tests -q
+      - name: Build application
+        run: python -m PyInstaller --noconfirm --clean TelegramOfferScheduler.spec
+      - name: Verify application
+        run: python verify_binary.py
+      - name: Package portable and source archives
+        run: python package_release.py
+      - name: Prepare installer payload
+        shell: pwsh
+        run: Copy-Item ../outputs/telegram-scheduler-v4.0/TelegramOfferScheduler-v4.0-Windows-x64.zip payload.zip -Force
+      - name: Build installer
+        run: python -m PyInstaller --noconfirm --clean Installer.spec
+      - name: Verify installer
+        run: python verify_installer.py
+      - name: Collect Windows release files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release-windows | Out-Null
+          Copy-Item dist/TelegramOfferScheduler-4.0-Setup.exe release-windows/
+          Copy-Item ../outputs/telegram-scheduler-v4.0/TelegramOfferScheduler-v4.0-Windows-x64.zip release-windows/
+          Copy-Item ../outputs/telegram-scheduler-v4.0/TelegramOfferScheduler-v4.0-Source.zip release-windows/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TelegramOfferScheduler-4.0-Windows
+          path: release-windows/*
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover -s tests -q
+      - name: Build macOS application
+        run: python -m PyInstaller --noconfirm --clean TelegramOfferScheduler-macOS.spec
+      - name: Ad-hoc sign application
+        run: codesign --deep --force --sign - dist/TelegramOfferScheduler.app
+      - name: Create macOS archives
+        run: |
+          mkdir -p release-macos/dmg
+          cp -R dist/TelegramOfferScheduler.app release-macos/dmg/
+          cp README.md GUIDE_V3.md release-macos/dmg/
+          hdiutil create -volname TelegramOfferScheduler -srcfolder release-macos/dmg -ov -format UDZO release-macos/TelegramOfferScheduler-v4.0-macOS.dmg
+          ditto -c -k --sequesterRsrc --keepParent dist/TelegramOfferScheduler.app release-macos/TelegramOfferScheduler-v4.0-macOS.zip
+          rm -rf release-macos/dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TelegramOfferScheduler-4.0-macOS
+          path: release-macos/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Publish private-repository release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --title "Telegram Offer Scheduler 4.0" --generate-notes

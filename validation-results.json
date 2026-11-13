@@ -1,0 +1,10 @@
+{
+  "binary_exit_code": 0,
+  "startup_seconds": 3.73,
+  "repeat_api_in_binary": true,
+  "telegram_session_created": false,
+  "live_telegram_test": false,
+  "imported_template_preserved": true,
+  "automatic_settings_backup": true,
+  "startup_log": "2026-11-11 09:53:44,416 [Основной аккаунт] Telethon 1.45.0; repeat API: True"
+}
