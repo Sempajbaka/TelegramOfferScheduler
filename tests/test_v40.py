@@ -42,14 +42,15 @@ class DialogToolsTests(unittest.TestCase):
 
 class CrossPlatformTests(unittest.TestCase):
     def test_macos_data_directory(self):
-        with TemporaryDirectory() as folder, \
-                patch('storage.os.name', 'posix'), patch('storage.sys.platform', 'darwin'), \
-                patch('storage.Path.home', return_value=Path(folder)):
-            self.assertEqual(data_dir(), Path(folder) / 'Library' / 'Application Support' / 'TelegramOfferScheduler')
+        with TemporaryDirectory() as folder:
+            self.assertEqual(
+                data_dir(os_name='posix', platform='darwin', home=folder),
+                Path(folder) / 'Library' / 'Application Support' / 'TelegramOfferScheduler')
 
     def test_macos_keychain_roundtrip_uses_secretless_marker(self):
         with TemporaryDirectory() as folder, \
-                patch('profiles.os.name', 'posix'), patch('profiles.sys.platform', 'darwin'):
+                patch('profiles._is_windows', return_value=False), \
+                patch('profiles._is_macos', return_value=True):
             vault = Vault(folder)
             completed = [NS(returncode=0, stdout='', stderr=''),
                          NS(returncode=0, stdout='secret-value\n', stderr='')]

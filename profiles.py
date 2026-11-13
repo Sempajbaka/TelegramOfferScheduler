@@ -13,6 +13,14 @@ import uuid
 from storage import save_json
 
 
+def _is_windows():
+    return os.name == 'nt'
+
+
+def _is_macos():
+    return sys.platform == 'darwin'
+
+
 def protect(data: bytes, decrypt=False) -> bytes:
     if os.name != 'nt':
         raise RuntimeError('Защищённые сессии поддерживаются только в Windows')
@@ -51,17 +59,17 @@ class Vault:
         return self.directory / (name + '.keychain')
 
     def exists(self, name):
-        if os.name == 'nt':
+        if _is_windows():
             return (self.directory / (name + '.dpapi')).exists()
-        if sys.platform == 'darwin':
+        if _is_macos():
             return self._marker(name).exists()
         return False
 
     def read(self, name):
         path = self.directory / (name + '.dpapi')
-        if os.name == 'nt':
+        if _is_windows():
             return protect(path.read_bytes(), decrypt=True).decode('utf-8') if path.exists() else ''
-        if sys.platform == 'darwin':
+        if _is_macos():
             if not self._marker(name).exists():
                 return ''
             result = subprocess.run(
@@ -77,13 +85,13 @@ class Vault:
 
     def write(self, name, value):
         self.directory.mkdir(parents=True, exist_ok=True)
-        if os.name == 'nt':
+        if _is_windows():
             target = self.directory / (name + '.dpapi')
             temp = target.with_suffix('.tmp')
             temp.write_bytes(protect(value.encode('utf-8')))
             os.replace(temp, target)
             return
-        if sys.platform == 'darwin':
+        if _is_macos():
             result = subprocess.run(
                 ['security', 'add-generic-password', '-U', '-s', 'TelegramOfferScheduler',
                  '-a', self._keychain_account(name), '-w', value],
@@ -98,10 +106,10 @@ class Vault:
         raise RuntimeError('Защищённые сессии поддерживаются только в Windows и macOS')
 
     def delete(self, name):
-        if os.name == 'nt':
+        if _is_windows():
             (self.directory / (name + '.dpapi')).unlink(missing_ok=True)
             return
-        if sys.platform == 'darwin':
+        if _is_macos():
             subprocess.run(
                 ['security', 'delete-generic-password', '-s', 'TelegramOfferScheduler',
                  '-a', self._keychain_account(name)],

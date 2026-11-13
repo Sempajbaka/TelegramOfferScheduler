@@ -8,13 +8,18 @@ from contextlib import closing
 from pathlib import Path
 
 
-def data_dir():
-    if os.name == 'nt':
-        path = Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'TelegramOfferScheduler'
-    elif sys.platform == 'darwin':
-        path = Path.home() / 'Library' / 'Application Support' / 'TelegramOfferScheduler'
+def data_dir(os_name=None, platform=None, home=None, environ=None):
+    """Return the application data directory, with injectable platform values for tests."""
+    os_name = os.name if os_name is None else os_name
+    platform = sys.platform if platform is None else platform
+    home = Path.home() if home is None else Path(home)
+    environ = os.environ if environ is None else environ
+    if os_name == 'nt':
+        path = Path(environ.get('LOCALAPPDATA', str(home))) / 'TelegramOfferScheduler'
+    elif platform == 'darwin':
+        path = home / 'Library' / 'Application Support' / 'TelegramOfferScheduler'
     else:
-        path = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local' / 'share'))) / 'TelegramOfferScheduler'
+        path = Path(environ.get('XDG_DATA_HOME', str(home / '.local' / 'share'))) / 'TelegramOfferScheduler'
     path.mkdir(parents=True, exist_ok=True)
     return path
 
