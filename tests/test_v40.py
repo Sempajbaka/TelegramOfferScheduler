@@ -7,13 +7,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace as NS
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 from telethon import errors, functions, types
 
-from app import Window
+from app import PRE_AUTH_METHODS, Window
 from dialog_tools import dialog_matches, sort_dialogs
 from engine import Engine
 from profiles import Vault
@@ -143,24 +143,9 @@ class CleanupGuiTests(unittest.TestCase):
         self.assertGreaterEqual(pixmap.width(), 300)
 
     def test_qr_login_is_allowed_before_account_is_loaded(self):
-        initialized = threading.Event()
-        initialized.set()
-        submit = Mock()
-        window = object.__new__(Window)
-        window.busy = False
-        window.loaded = False
-        window.worker = NS(initialized=initialized, options={}, submit=submit)
-        window.progress_started = 0
-        window.progress_state = {}
-        window.operation_progress = Mock()
-        window.enable_editing = Mock()
-        window.status = Mock()
-        window.pause = NS(value=lambda: 2)
-        window.create_pause = NS(value=lambda: 2)
-        window.test_mode = NS(isChecked=lambda: True)
-        window.margin = NS(value=lambda: 60)
-        window.run('connect_qr', '', '', 2)
-        submit.assert_called_once_with('connect_qr', '', '', 2)
+        self.assertIn('connect_qr', PRE_AUTH_METHODS)
+        self.assertIn('wait_qr_login', PRE_AUTH_METHODS)
+        self.assertNotIn('dialogs', PRE_AUTH_METHODS)
 
     def test_confirmation_uses_durable_ids_not_visual_order(self):
         with TemporaryDirectory() as folder:

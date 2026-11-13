@@ -32,6 +32,9 @@ from dialog_tools import KIND_NAMES, dialog_matches, sort_dialogs
 from telethon.extensions import html as telegram_html
 
 
+PRE_AUTH_METHODS = frozenset({'connect', 'connect_qr', 'wait_qr_login', 'login', 'switch_profile'})
+
+
 class Worker(QThread):
     result = Signal(object)
     log = Signal(str)
@@ -1070,8 +1073,7 @@ class Window(QMainWindow):
         if not self.worker.initialized.is_set():
             QMessageBox.information(self, 'Запуск', 'Дождитесь завершения запуска приложения.')
             return
-        auth_methods = ('connect', 'connect_qr', 'wait_qr_login', 'login', 'switch_profile')
-        if method not in auth_methods and not self.loaded:
+        if method not in PRE_AUTH_METHODS and not self.loaded:
             QMessageBox.information(self, 'Вход', 'Сначала подключите аккаунт на вкладке 1.')
             return
         if method in ('prepare', 'resume', 'queues', 'clear_progress', 'prepare_updates', 'pending_changes') and not args[0]:
