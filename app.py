@@ -139,7 +139,7 @@ class Window(QMainWindow):
         self.cleanup_selected_ids = set()
         self.plan = []
         self.changes = []
-        self.setWindowTitle('Telegram • Предложение о сотрудничестве — 4.2')
+        self.setWindowTitle('Telegram • Предложение о сотрудничестве — 4.3')
         self.resize(1200, 850)
         root = QWidget()
         self.setCentralWidget(root)
@@ -561,7 +561,7 @@ class Window(QMainWindow):
         layout.addWidget(self.chat_filter_status)
         self.chats = QTableWidget(0, 10)
         self.chats.cellDoubleClicked.connect(self.chat_status_details)
-        self.chats.setHorizontalHeaderLabels(['Выбрать', 'Группа', 'Разрешение', 'Мин. интервал, мин', 'Правила / основание', 'Шаблон', 'Slow mode, с', 'Статус', 'ID группы', 'Участников'])
+        self.chats.setHorizontalHeaderLabels(['Выбрать', 'Группа', 'Разрешение', 'Мин. интервал, мин', 'Примечание (необязательно)', 'Шаблон', 'Slow mode, с', 'Статус', 'ID группы', 'Участников'])
         self.chats.horizontalHeader().moveSection(9, 2)
         self.chat_search.textChanged.connect(self.filter_chats)
         self.chats.itemChanged.connect(self.filter_chats)
@@ -570,7 +570,7 @@ class Window(QMainWindow):
         self.chats.setColumnWidth(2, 110)
         self.chats.setColumnWidth(3, 150)
         layout.addWidget(self.chats)
-        self.button('Сохранить список и правила', self.save, layout)
+        self.button('Сохранить список', self.save, layout)
         self.button('Часы публикации и чередование для выбранных групп…', self.campaign_settings, layout)
 
     def filter_chats(self, *_):
@@ -1234,7 +1234,7 @@ class Window(QMainWindow):
         count = sum(len(p['slots']) for p in self.plan)
         if self.confirm(f'Создать {count} сообщений по ПОКАЗАННОМУ плану в {len(self.plan)} группах?\n'
                         'Текст и настройки зафиксированы в предварительном просмотре.\n'
-                        'Подтверждаю разрешение администраторов и соответствие правилам групп.'):
+                        'Подтверждаю разрешение администраторов групп.'):
             self.run('execute')
 
     def resume(self):
@@ -1515,8 +1515,10 @@ class Window(QMainWindow):
                 lines += [f"{p['title']} • slow mode {p['slow']} с • интервал {p['interval']/60:g} мин",
                           f"В очереди {p['existing']}; создать {len(p['slots'])}; повтор {p['repeat']} с",
                           f"После создания в очереди: {p['existing'] + len(p['slots'])}. Допустимо по интервалу за суточный цикл: {86400 // p['interval']}.",
-                          'ТЕСТ: план ограничен одним новым слотом. Для заполнения нажмите кнопку полного плана.' if p.get('test_mode') else 'Полный план: существующие сообщения сохраняются, добавляются доступные слоты.',
-                          f"Правила: {p['rules']}", 'ТЕКСТ:', p['text'], 'TELEGRAM HTML:', telegram_html.unparse(p['text'], decode(p.get('entities'))), 'СЛОТЫ:']
+                          'ТЕСТ: план ограничен одним новым слотом. Для заполнения нажмите кнопку полного плана.' if p.get('test_mode') else 'Полный план: существующие сообщения сохраняются, добавляются доступные слоты.']
+                if p.get('rules', '').strip():
+                    lines.append(f"Примечание: {p['rules']}")
+                lines += ['ТЕКСТ:', p['text'], 'TELEGRAM HTML:', telegram_html.unparse(p['text'], decode(p.get('entities'))), 'СЛОТЫ:']
                 for t in p['slots']:
                     content = p.get('slot_contents', {}).get(str(t), p)
                     lines += [f"{self.format_time(t)} • {content.get('template_id', '')}", content['text'],

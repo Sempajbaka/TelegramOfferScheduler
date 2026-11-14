@@ -8,7 +8,7 @@ import sys
 import zipfile
 
 root = Path(__file__).resolve().parent
-out = root.parent / 'outputs' / 'telegram-scheduler-v4.2'
+out = root.parent / 'outputs' / 'telegram-scheduler-v4.3'
 out.mkdir(parents=True, exist_ok=True)
 binary = root / 'dist' / 'TelegramOfferScheduler'
 assert (binary / 'TelegramOfferScheduler.exe').is_file(), 'Build the application first'
@@ -43,12 +43,12 @@ source_files += list((root / 'screenshots').glob('*.png'))
 source_files += [p for p in licenses.rglob('*') if p.is_file()]
 source_files += [root / 'validation-results.json']
 
-source_zip = out / 'TelegramOfferScheduler-v4.2-Source.zip'
+source_zip = out / 'TelegramOfferScheduler-v4.3-Source.zip'
 with zipfile.ZipFile(source_zip, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
     for path in source_files:
         archive.write(path, 'telegram-scheduler/' + path.relative_to(root).as_posix())
 
-binary_zip = out / 'TelegramOfferScheduler-v4.2-Windows-x64.zip'
+binary_zip = out / 'TelegramOfferScheduler-v4.3-Windows-x64.zip'
 with zipfile.ZipFile(binary_zip, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
     for path in binary.rglob('*'):
         if path.is_file():

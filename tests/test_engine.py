@@ -97,6 +97,14 @@ class EngineTests(unittest.IsolatedAsyncioTestCase):
             await self.engine.prepare([{**self.config, 'allowed': False}], 'Offer', int(time.time()) + 600, 86400, 1, 1)
         self.assertFalse(self.engine.client.sent)
 
+    async def test_rules_note_is_optional_for_prepare_and_execute(self):
+        self.engine.sleep = AsyncMock()
+        config = {**self.config, 'rules': ''}
+        result = await self.engine.prepare([config], 'Offer', int(time.time()) + 600, 86400, 1, 1)
+        self.assertEqual(len(result['plan'][0]['slots']), 1)
+        await self.engine.execute()
+        self.assertEqual(len(self.engine.client.messages), 1)
+
     async def test_plan_survives_database_reopen(self):
         from storage import Store
         self.plan(1)

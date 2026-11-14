@@ -46,8 +46,8 @@ app = BUNDLE(
     bundle_identifier='com.telegramofferscheduler.desktop',
     info_plist={
         'CFBundleDisplayName': 'Telegram Offer Scheduler',
-        'CFBundleShortVersionString': '4.2',
-        'CFBundleVersion': '4.2',
+        'CFBundleShortVersionString': '4.3',
+        'CFBundleVersion': '4.3',
         'LSMinimumSystemVersion': '12.0',
         'NSHighResolutionCapable': True,
     },

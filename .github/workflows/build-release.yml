@@ -34,7 +34,7 @@ jobs:
         run: python package_release.py
       - name: Prepare installer payload
         shell: pwsh
-        run: Copy-Item ../outputs/telegram-scheduler-v4.2/TelegramOfferScheduler-v4.2-Windows-x64.zip payload.zip -Force
+        run: Copy-Item ../outputs/telegram-scheduler-v4.3/TelegramOfferScheduler-v4.3-Windows-x64.zip payload.zip -Force
       - name: Build installer
         run: python -m PyInstaller --noconfirm --clean Installer.spec
       - name: Verify installer
@@ -43,12 +43,12 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release-windows | Out-Null
-          Copy-Item dist/TelegramOfferScheduler-4.2-Setup.exe release-windows/
-          Copy-Item ../outputs/telegram-scheduler-v4.2/TelegramOfferScheduler-v4.2-Windows-x64.zip release-windows/
-          Copy-Item ../outputs/telegram-scheduler-v4.2/TelegramOfferScheduler-v4.2-Source.zip release-windows/
+          Copy-Item dist/TelegramOfferScheduler-4.3-Setup.exe release-windows/
+          Copy-Item ../outputs/telegram-scheduler-v4.3/TelegramOfferScheduler-v4.3-Windows-x64.zip release-windows/
+          Copy-Item ../outputs/telegram-scheduler-v4.3/TelegramOfferScheduler-v4.3-Source.zip release-windows/
       - uses: actions/upload-artifact@v4
         with:
-          name: TelegramOfferScheduler-4.2-Windows
+          name: TelegramOfferScheduler-4.3-Windows
           path: release-windows/*
           if-no-files-found: error
 
@@ -75,12 +75,12 @@ jobs:
           mkdir -p release-macos/dmg
           cp -R dist/TelegramOfferScheduler.app release-macos/dmg/
           cp README.md GUIDE_V3.md release-macos/dmg/
-          hdiutil create -volname TelegramOfferScheduler -srcfolder release-macos/dmg -ov -format UDZO release-macos/TelegramOfferScheduler-v4.2-macOS.dmg
-          ditto -c -k --sequesterRsrc --keepParent dist/TelegramOfferScheduler.app release-macos/TelegramOfferScheduler-v4.2-macOS.zip
+          hdiutil create -volname TelegramOfferScheduler -srcfolder release-macos/dmg -ov -format UDZO release-macos/TelegramOfferScheduler-v4.3-macOS.dmg
+          ditto -c -k --sequesterRsrc --keepParent dist/TelegramOfferScheduler.app release-macos/TelegramOfferScheduler-v4.3-macOS.zip
           rm -rf release-macos/dmg
       - uses: actions/upload-artifact@v4
         with:
-          name: TelegramOfferScheduler-4.2-macOS
+          name: TelegramOfferScheduler-4.3-macOS
           path: release-macos/*
           if-no-files-found: error
 
@@ -96,4 +96,4 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --title "Telegram Offer Scheduler 4.2" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --title "Telegram Offer Scheduler 4.3" --generate-notes

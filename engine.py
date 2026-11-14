@@ -619,8 +619,8 @@ class Engine:
                 value, formatting = parse_offer(text.get(name, '') if isinstance(text, dict) else text)
                 contents.append({'template_id': name, 'text': value, 'entities': encode(formatting)})
             offer, entities = contents[0]['text'], decode(contents[0]['entities'])
-            if not chat['allowed'] or not chat['rules'].strip():
-                raise ValueError(f"{chat['title']}: подтвердите разрешение администратора и укажите правила")
+            if not chat.get('allowed'):
+                raise ValueError(f"{chat['title']}: подтвердите разрешение администратора")
             slow = await self.slowmode(chat['id'])
             interval = interval_seconds(slow, chat['manual'], self.margin)
             remote = await self.history(chat['id'])
@@ -717,8 +717,8 @@ class Engine:
         context = {} if context is None else context
         for config in chats:
             chat = config.get('chat', config['id'])
-            if not config['allowed'] or not config['rules'].strip():
-                raise ValueError('Нет подтверждения разрешения администратора / правил')
+            if not config.get('allowed'):
+                raise ValueError('Нет подтверждения разрешения администратора')
             if chat not in context or time.monotonic() - context[chat][2] > 60:
                 interval = interval_seconds(await self.slowmode(chat), config['manual'], self.margin)
                 earliest = await self.earliest(chat, interval)
